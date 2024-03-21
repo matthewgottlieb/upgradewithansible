@@ -1,0 +1,17 @@
+---
+#EOS Upgrade
+eos_target_version: 4.28.10.1M
+eos_image_file: EOS-{{ eos_target_version }}.swi
+eos_image_md5: d6a4e061b955dea5baa841bc79b524e9
+
+ansible_network_os: eos
+ansible_connection: httpapi
+ansible_httpapi_port: 443
+ansible_httpapi_use_ssl: True
+ansible_httpapi_validate_certs: False
+ansible_become: yes
+ansible_become_method: enable
+ansible_user: admin
+ansible_password: admin
+ansible_become_pass: admin
+ansible_python_interpreter: /usr/bin/python3

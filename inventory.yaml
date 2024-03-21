@@ -1,0 +1,7 @@
+arista:
+  children:
+    leafs:
+      hosts:
+        hostA:
+        hostB:
+        hostC:

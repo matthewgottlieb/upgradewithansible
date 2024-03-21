@@ -1,0 +1,68 @@
+---
+- name: EOS upgrade
+  hosts: leafs
+  gather_facts: no
+  tasks:
+
+    - name: Gather facts about device
+      eos_facts:
+        gather_subset: hardware
+
+    - name: Check EOS image file size
+      stat:
+        path: "{{ playbook_dir }}/files/{{ eos_image_file }}"
+      register: local_eos_image
+      
+    - name: Create fact for file size
+      set_fact:
+        eos_image_size_mb={{ (local_eos_image.stat.size  / 1024 / 1024) | round(0, 'ceil') | int }}
+
+    - name: Create fact to see if EOS needs to be upgraded to {{ eos_target_version }} & that there is {{ eos_image_size_mb }} MB of free space on flash
+      set_fact:
+        perform_upgrade={{ eos_target_version != ansible_net_version and ansible_net_memfree_mb > (eos_image_size_mb | int) }}
+
+    - name: Copy EOS image file to flash
+      ansible.netcommon.net_put:
+        src: "{{ playbook_dir }}/files/{{ eos_image_file }}"
+        dest: "/mnt/flash/{{ eos_image_file }}"
+        protocol: sftp
+      vars:
+        ansible_connection: network_cli
+        ansible_command_timeout: 300
+        ansible_network_cli_ssh_type: paramiko
+      when: perform_upgrade
+
+    - name: Verify image uploaded to flash
+      eos_command:
+        commands:
+          - "verify /md5 flash:{{ eos_image_file }}"
+      register: flash_swi_md5
+      when: perform_upgrade
+
+    - name: Install new EOS
+      eos_command:
+        commands:
+        - command: "install source flash:{{ eos_image_file }}"
+      when: "perform_upgrade and eos_image_md5 in flash_swi_md5.stdout[0]"
+
+    - name: Reload the switch
+      cli_command:
+        command: 'reload now'
+      vars:
+        ansible_connection: network_cli
+      when: "perform_upgrade and eos_image_md5 in flash_swi_md5.stdout[0]"
+
+    - name: Wait for switch to reload
+      wait_for_connection:
+        delay: 180
+        timeout: 600
+      when: "perform_upgrade and eos_image_md5 in flash_swi_md5.stdout[0]" 
+
+    - name: Gather post-upgrade facts
+      eos_facts:
+        gather_subset: hardware
+
+    - name: Assert the EOS version is {{ eos_target_version }}
+      assert:
+        that:
+          - eos_target_version == ansible_net_version

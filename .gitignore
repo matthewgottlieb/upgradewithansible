@@ -1,0 +1,2 @@
+files/*.swi
+!files/notarealeos.swi
