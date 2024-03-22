@@ -53,7 +53,8 @@
       when: "perform_upgrade and eos_image_md5 in flash_swi_md5.stdout[0]"
 
     - name: Wait for switch to reload
-      wait_for_connection:
+      wait_for:
+        port: 22
         delay: 180
         timeout: 600
       when: "perform_upgrade and eos_image_md5 in flash_swi_md5.stdout[0]" 
